@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Signed vs unsigned: 8-bit rollover</title>
+<style>
+:root{--s1:#F5F4EF;--bs:rgba(0,0,0,.22);--b:rgba(0,0,0,.12);--tp:#1f1e1d;--ts:#5f5e5a;--tm:#888780;--ba:#E6F1FB;--ta:#185FA5;--bra:#85B7EB;--bd:#FCEBEB;--td:#A32D2D;--brd:#F09595;--mono:'DejaVu Sans Mono',Consolas,monospace}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--tp);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 12px}
+.row{display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap}
+.bit{width:40px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:20px;border:1px solid var(--bs);background:var(--s1)}
+.bit.on{background:var(--ba);color:var(--ta);border-color:var(--bra)}
+.bit.sign{outline:2px solid var(--brd);outline-offset:1px}
+.lbl{font-size:12px;color:var(--tm);text-align:center;width:40px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.card{background:var(--s1);border-radius:8px;padding:10px 14px}
+.big{font-size:26px;font-weight:500;font-family:var(--mono)}
+.sm{font-size:13px;color:var(--ts)}
+button{font:inherit;font-size:14px;padding:6px 12px;border-radius:8px;border:1px solid var(--bs);background:#fff;cursor:pointer}
+input,select{font:inherit;font-size:14px;padding:5px 8px;border-radius:8px;border:1px solid var(--bs)}
+#steps{font-family:var(--mono);font-size:14px;line-height:1.9}
+</style>
+</head>
+<body>
+<h1>Same 8 bits, two meanings: unsigned char vs signed char</h1>
+<div class="row" id="bits"></div>
+<div class="row" id="w"></div>
+<div class="grid">
+<div class="card"><div class="sm">Read as unsigned char (0 to 255)</div><div class="big" id="u">0</div></div>
+<div class="card"><div class="sm">Read as signed char (-128 to 127)</div><div class="big" id="s">0</div></div>
+<div class="card"><div class="sm">Hex</div><div class="big" id="h">0x00</div></div>
+</div>
+<div class="row">
+<button id="dec">-1</button><button id="inc">+1</button>
+<button id="p1">Play 250 → 5</button><button id="p2">Play 125 → 131</button><button id="p3">Play 3 → -3</button>
+</div>
+<div class="sm" id="msg" style="text-align:center;min-height:22px;margin-top:10px;font-size:15px;color:var(--tp)"></div>
+<svg width="100%" viewBox="0 0 680 110" style="margin-top:8px">
+<text x="10" y="24" font-size="13" fill="#5f5e5a">unsigned</text>
+<rect x="90" y="12" width="290" height="16" rx="4" fill="#9FE1CB"/><rect x="380" y="12" width="290" height="16" rx="4" fill="#F5C4B3"/>
+<text x="90" y="46" font-size="12" fill="#5f5e5a">0</text><text x="358" y="46" font-size="12" fill="#5f5e5a">127</text><text x="385" y="46" font-size="12" fill="#5f5e5a">128</text><text x="645" y="46" font-size="12" fill="#5f5e5a">255</text>
+<text x="10" y="80" font-size="13" fill="#5f5e5a">signed</text>
+<rect x="90" y="68" width="290" height="16" rx="4" fill="#9FE1CB"/><rect x="380" y="68" width="290" height="16" rx="4" fill="#F5C4B3"/>
+<text x="90" y="102" font-size="12" fill="#5f5e5a">0</text><text x="358" y="102" font-size="12" fill="#5f5e5a">127</text><text x="383" y="102" font-size="12" fill="#5f5e5a">-128</text><text x="652" y="102" font-size="12" fill="#5f5e5a">-1</text>
+<rect id="cur" x="88" y="8" width="3" height="80" fill="#E24B4A"/>
+</svg>
+<div class="sm" style="text-align:center">Green half: same in both. Orange half: top bit is 1, so unsigned reads it big and signed reads it negative (value − 256).</div>
+<div style="border-top:1px solid var(--b);margin-top:18px;padding-top:14px">
+<div class="row" style="justify-content:flex-start">
+<span class="sm">Store</span><input id="val" type="number" value="200" style="width:110px">
+<span class="sm">into</span>
+<select id="ty"><option value="u8">unsigned char</option><option value="s8" selected>signed char</option><option value="u16">unsigned short</option><option value="s16">short</option></select>
+<button id="go">Convert</button>
+</div>
+<div id="err" style="font-size:13px;color:var(--td);min-height:18px;margin-top:4px"></div>
+<div id="steps"></div>
+</div>
+<script>
+const SPEED=+(new URLSearchParams(location.search).get('speed')||1);
+let v=0,t=null;
+const B=document.getElementById('bits'),W=document.getElementById('w');
+for(let i=7;i>=0;i--){const d=document.createElement('div');d.className='bit'+(i==7?' sign':'');d.id='b'+i;B.appendChild(d);const l=document.createElement('div');l.className='lbl';l.textContent=i==7?'sign':(1<<i);W.appendChild(l);}
+function show(m){v=((v%256)+256)%256;for(let i=0;i<8;i++){const e=document.getElementById('b'+i),on=(v>>i)&1;e.textContent=on;e.classList.toggle('on',!!on);}
+document.getElementById('u').textContent=v;document.getElementById('s').textContent=v>127?v-256:v;
+document.getElementById('h').textContent='0x'+v.toString(16).toUpperCase().padStart(2,'0');
+document.getElementById('cur').setAttribute('x',88+v*(580/255));if(m!==undefined)document.getElementById('msg').textContent=m;}
+function step(d){const o=v;v+=d;let m='';if(o==255&&d>0)m='Unsigned rollover: 255 + 1 → 0 (all bits carry out)';else if(o==0&&d<0)m='Unsigned rollover: 0 − 1 → 255 (all bits become 1)';else if(o==127&&d>0)m='Signed rollover: 127 + 1 → -128 (sign bit turns on)';else if(o==128&&d<0)m='Signed rollover: -128 − 1 → 127';show(m);}
+function play(a,b){return new Promise(res=>{clearInterval(t);v=a;show('');const d=b>a?1:-1;t=setInterval(()=>{if(v==((b%256)+256)%256){clearInterval(t);res();return;}step(d);},420/SPEED);});}
+document.getElementById('inc').onclick=()=>{clearInterval(t);step(1)};
+document.getElementById('dec').onclick=()=>{clearInterval(t);step(-1)};
+document.getElementById('p1').onclick=()=>play(250,261);
+document.getElementById('p2').onclick=()=>play(125,131);
+document.getElementById('p3').onclick=()=>play(3,-3);
+show('Press play to watch the rollover');
+const val=document.getElementById('val');val.oninput=()=>document.getElementById('err').textContent='';
+function convert(){
+const x=parseInt(val.value,10);if(isNaN(x)){document.getElementById('err').textContent='Enter a whole number first';return;}
+const ty=document.getElementById('ty').value,n=ty.endsWith('16')?16:8,M=2**n,sg=ty.startsWith('s');
+const lo=sg?-(M/2):0,hi=sg?M/2-1:M-1;const r=((x%M)+M)%M;const out=sg&&r>=M/2?r-M:r;
+const bits=r.toString(2).padStart(n,'0').replace(/(.{4})/g,'$1 ').trim();
+let s='1. Range of '+document.getElementById('ty').selectedOptions[0].text+': '+lo+' to '+hi+'<br>';
+s+=(x>=lo&&x<=hi)?'2. '+x+' fits → stored as is<br>':'2. '+x+' does not fit → keep low '+n+' bits: '+x+' mod '+M+' = '+r+'<br>';
+s+='3. Bits in memory: '+bits+'<br>';
+s+=sg?(r>=M/2?'4. Top bit = 1 → negative → '+r+' − '+M+' = <b>'+out+'</b>':'4. Top bit = 0 → positive → <b>'+out+'</b>'):'4. Unsigned → read bits directly = <b>'+out+'</b>';
+document.getElementById('steps').innerHTML=s;}
+document.getElementById('go').onclick=convert;convert();
+if(new URLSearchParams(location.search).get('demo')){(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms/SPEED));for(;;){await play(250,261);await w(1800);await play(125,131);await w(1800);await play(3,-3);await w(1800);window.loopDone=true;}})();}
+</script>
+</body>
+</html>

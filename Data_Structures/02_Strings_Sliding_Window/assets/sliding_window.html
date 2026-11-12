@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sliding window: longest substring without repeating characters</title>
+<style>
+:root{--s1:#F5F4EF;--bs:rgba(0,0,0,.22);--tp:#1f1e1d;--ts:#5f5e5a;--tm:#888780;--mono:'DejaVu Sans Mono',Consolas,monospace}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--tp);background:#fff;margin:0;padding:18px;width:720px}
+.cell{width:46px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:22px;border:1px solid var(--bs);background:var(--s1);transition:background .25s}
+.cell.win{background:#E6F1FB;color:#185FA5;border-color:#85B7EB}
+.cell.cur{background:#FAEEDA;color:#854F0B;border-color:#EF9F27}
+.cell.dup{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.idx{width:46px;text-align:center;font-size:12px;color:var(--tm);font-family:var(--mono)}
+.mk{width:46px;text-align:center;font-size:13px;font-weight:500;height:20px}
+.met{background:var(--s1);border-radius:8px;padding:10px 14px;min-width:110px}
+.ml{font-size:13px;color:var(--ts)}
+.mv{font-size:22px;font-weight:500;font-family:var(--mono)}
+.r{display:flex;gap:4px;justify-content:center}
+</style>
+</head>
+<body>
+<div class="r" id="mt"></div>
+<div class="r" id="cells"></div>
+<div class="r" style="margin-top:2px" id="ix"></div>
+<div class="r" id="mb"></div>
+<div style="display:flex;gap:10px;justify-content:center;margin:16px 0 10px">
+<div class="met"><div class="ml">Window</div><div class="mv" id="wv">""</div></div>
+<div class="met"><div class="ml">Size</div><div class="mv" id="sz">0</div></div>
+<div class="met"><div class="ml">Best so far</div><div class="mv" id="bs" style="color:#3B6D11">0</div></div>
+</div>
+<div id="cap" style="text-align:center;font-size:15px;min-height:52px;line-height:1.6"></div>
+<div style="display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--ts);margin-top:4px">
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#E6F1FB;margin-right:4px"></span>window (no repeats)</span>
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#FAEEDA;margin-right:4px"></span>new letter (right)</span>
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#FCEBEB;margin-right:4px"></span>old copy (repeat)</span>
+</div>
+<script>
+const SPEED=+(new URLSearchParams(location.search).get('speed')||1);
+const S=new URLSearchParams(location.search).get('s')||"welcome all",N=S.length,$=id=>document.getElementById(id);
+for(let i=0;i<N;i++){
+ const c=document.createElement('div');c.className='cell';c.id='c'+i;c.textContent=S[i]==' '?'␣':S[i];$('cells').appendChild(c);
+ const x=document.createElement('div');x.className='idx';x.textContent=i;$('ix').appendChild(x);
+ const t=document.createElement('div');t.className='mk';t.id='t'+i;t.style.color='#854F0B';$('mt').appendChild(t);
+ const b=document.createElement('div');b.className='mk';b.id='b'+i;b.style.color='#185FA5';$('mb').appendChild(b);}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms/SPEED));
+function paint(L,R,cur,dup){for(let i=0;i<N;i++){const e=$('c'+i);e.className='cell'+(i==dup?' dup':i==cur?' cur':(i>=L&&i<=R?' win':''));
+ $('t'+i).textContent=i==R?'right':'';$('b'+i).textContent=i==L?'left':'';}
+ const w=R>=L?S.slice(L,R+1):'';$('wv').textContent='"'+w+'"';$('sz').textContent=R>=L?R-L+1:0;}
+const q=c=>c==' '?'space':"'"+c+"'";
+async function run(){
+ for(;;){
+  const last={};let L=0,best=0;$('bs').textContent=0;paint(0,-1,-1,-1);
+  $('cap').textContent='Start: left = 0, window is empty.';await sleep(1800);
+  for(let R=0;R<N;R++){
+   const c=S[R];paint(L,R-1,R,-1);
+   $('cap').textContent='right moves to index '+R+' → new letter '+q(c)+'. Is it already inside the window?';await sleep(1500);
+   if(last[c]!==undefined&&last[c]>=L){
+    const old=last[c];paint(L,R-1,R,old);
+    $('cap').textContent='Yes! '+q(c)+' is already at index '+old+'. Move left to '+(old+1)+' (just past the old copy).';await sleep(2000);
+    L=old+1;}
+   else{$('cap').textContent='No repeat → just grow the window.';await sleep(900);}
+   last[c]=R;paint(L,R,-1,-1);const sz=R-L+1;
+   if(sz>best){best=sz;$('bs').textContent=best;$('cap').textContent='Window size '+sz+' → new best = '+best+'.';}
+   else $('cap').textContent='Window size '+sz+'. Best stays '+best+'.';
+   await sleep(1500);}
+  $('cap').innerHTML='Done. Answer = <b>'+best+'</b>. right moved '+N+' times and left only moved forward, so this is O(n).';
+  await sleep(4500);window.loopDone=true;}}
+run();
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Insertion sort, step by step</title>
+<style>
+:root{--s1:#F5F4EF;--bs:rgba(0,0,0,.22);--tp:#1f1e1d;--ts:#5f5e5a;--tm:#888780;--mono:'DejaVu Sans Mono',Consolas,monospace}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--tp);background:#fff;margin:0;padding:18px;width:720px}
+.c{width:56px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:24px;border:1px solid var(--bs);background:var(--s1);transition:background .25s}
+.c.sorted{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+.c.hole{background:transparent;border:1.5px dashed rgba(0,0,0,.45);color:transparent}
+.c.cmp{background:#FAEEDA;color:#854F0B;border-color:#EF9F27}
+.k{width:56px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:24px}
+.k.on{background:#E6F1FB;color:#185FA5;border:1px solid #85B7EB}
+.ix{width:56px;text-align:center;font-size:12px;color:var(--tm);font-family:var(--mono)}
+.r{display:flex;gap:6px;justify-content:center;align-items:center}
+</style>
+</head>
+<body>
+<div class="r"><span style="font-size:12px;color:var(--ts);width:40px;text-align:right">key</span><div id="kr" class="r"></div></div>
+<div class="r" style="margin-top:8px"><span style="width:40px"></span><div id="cr" class="r"></div></div>
+<div class="r" style="margin-top:2px"><span style="width:40px"></span><div id="ir" class="r"></div></div>
+<div id="cap" style="text-align:center;font-size:15px;min-height:52px;line-height:1.6;margin-top:16px"></div>
+<div id="code" style="font-family:var(--mono);font-size:13px;background:var(--s1);border-radius:8px;padding:10px 14px;line-height:1.8;max-width:460px;margin:8px auto 0"></div>
+<div style="display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--ts);margin-top:10px">
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EAF3DE;margin-right:4px"></span>sorted part</span>
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#E6F1FB;margin-right:4px"></span>key (card in hand)</span>
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#FAEEDA;margin-right:4px"></span>comparing</span>
+<span><span style="display:inline-block;width:10px;height:10px;border:1.5px dashed rgba(0,0,0,.45);border-radius:2px;margin-right:4px"></span>gap</span>
+</div>
+<script>
+const SPEED=+(new URLSearchParams(location.search).get('speed')||1);
+const A0=[5,2,4,1,3],N=A0.length,$=id=>document.getElementById(id);
+for(let i=0;i<N;i++){
+ const k=document.createElement('div');k.className='k';k.id='k'+i;$('kr').appendChild(k);
+ const c=document.createElement('div');c.className='c';c.id='c'+i;$('cr').appendChild(c);
+ const x=document.createElement('div');x.className='ix';x.textContent='a['+i+']';$('ir').appendChild(x);}
+const L=['for (i = 1; i < n; i++) {','  key = a[i];  j = i - 1;','  while (j >= 0 && a[j] > key) {','    a[j+1] = a[j];  j--;','  }','  a[j+1] = key;','}'];
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;');
+function code(h){$('code').innerHTML=L.map((l,i)=>'<div style="'+(i===h?'background:#E6F1FB;color:#185FA5;border-radius:4px;padding:0 4px;margin:0 -4px':'color:#5f5e5a')+'">'+esc(l)+'</div>').join('');}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms/SPEED));
+function draw(a,sortedTo,hole,key,cmp){for(let i=0;i<N;i++){const c=$('c'+i);
+ if(i===hole){c.className='c hole';c.textContent='';}
+ else{c.textContent=a[i];c.className='c'+(i===cmp?' cmp':(i<=sortedTo?' sorted':''));}
+ const k=$('k'+i);if(i===hole&&key!==null){k.className='k on';k.textContent=key;}else{k.className='k';k.textContent='';}}}
+async function run(){for(;;){
+ let a=A0.slice();draw(a,0,-1,null,-1);code(-1);
+ $('cap').textContent='Start: a[0] = 5 alone is already "sorted" (one card in your hand).';await sleep(2600);
+ for(let i=1;i<N;i++){
+  const key=a[i];let j=i-1;let hole=i;
+  code(1);draw(a,i-1,hole,key,-1);$('cap').textContent='i = '+i+': pick up key = '+key+'. It leaves a gap at a['+i+'].';await sleep(2200);
+  for(;;){
+   code(2);
+   if(j>=0){draw(a,i-1,hole,key,j);
+    if(a[j]>key){$('cap').textContent='a['+j+'] = '+a[j]+' > key '+key+' → bigger, so shift it right.';await sleep(1800);
+     code(3);a[j+1]=a[j];hole=j;draw(a,i-1,hole,key,-1);$('cap').textContent=a[j+1]+' copied to a['+(j+1)+']. The gap moves left to a['+j+'].';await sleep(1700);j--;continue;}
+    else{$('cap').textContent='a['+j+'] = '+a[j]+' ≤ key '+key+' → stop. The key belongs right after it.';await sleep(1900);}}
+   else{draw(a,i-1,hole,key,-1);$('cap').textContent='Reached the start (j = -1) → nothing smaller → key goes to the front.';await sleep(1900);}
+   break;}
+  code(5);a[j+1]=key;draw(a,i,-1,null,-1);$('cap').textContent='Drop key '+key+' into the gap at a['+(j+1)+']. Green part is sorted: {'+a.slice(0,i+1).join(', ')+'}.';await sleep(2400);}
+ code(-1);$('cap').textContent='Done: {'+a.join(', ')+'}. Each pass grows the sorted part by one card.';await sleep(4500);window.loopDone=true;}}
+run();
+</script>
+</body>
+</html>

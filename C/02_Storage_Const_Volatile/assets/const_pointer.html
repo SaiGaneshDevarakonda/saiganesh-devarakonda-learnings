@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>const and pointers: what is locked?</title>
+<style>
+:root{--s1:#F5F4EF;--bs:rgba(0,0,0,.22);--tp:#1f1e1d;--ts:#5f5e5a;--ba:#E6F1FB;--ta:#185FA5;--bgs:#EAF3DE;--tsu:#3B6D11;--bd:#FCEBEB;--td:#A32D2D;--mono:'DejaVu Sans Mono',Consolas,monospace}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--tp);background:#fff;margin:0;padding:18px;width:720px}
+.shake{animation:sh .45s}
+@keyframes sh{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.fade{transition:opacity .4s}
+.bx{transition:fill .3s,stroke .3s}
+.pill{font-size:12px;padding:3px 10px;border-radius:8px;background:var(--s1);color:var(--ts);font-family:var(--mono)}
+.pill.on{background:var(--ba);color:var(--ta)}
+</style>
+</head>
+<body>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px" id="dots"></div>
+<div style="font-family:var(--mono);font-size:15px;background:var(--s1);border-radius:8px;padding:12px 14px">
+<div id="decl" style="color:var(--ts);line-height:1.7"></div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:6px;min-height:28px"><span id="stmt"></span><span id="badge"></span></div>
+</div>
+<div id="note" style="font-size:14px;color:var(--ts);min-height:44px;margin:10px 0 0;line-height:1.6"></div>
+<svg width="100%" viewBox="0 0 680 270">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#888780"/></marker></defs>
+<g id="gp" class="fade"><text x="60" y="100" font-size="13" fill="#5f5e5a">p  · addr 0x2000</text>
+<rect id="rp" class="bx" x="60" y="110" width="140" height="70" rx="8" fill="#F5F4EF" stroke="#b4b2a9"/>
+<text id="vp" x="130" y="152" text-anchor="middle" font-size="20" font-family="DejaVu Sans Mono,monospace" fill="#1f1e1d">0x1000</text></g>
+<line id="arr" class="fade" x1="200" y1="145" x2="418" y2="75" stroke="#888780" stroke-width="2" marker-end="url(#ah)"/>
+<g id="ga"><text id="la" x="420" y="30" font-size="13" fill="#5f5e5a">a  · addr 0x1000</text>
+<rect id="ra" class="bx" x="420" y="40" width="140" height="70" rx="8" fill="#F5F4EF" stroke="#b4b2a9"/>
+<text id="va" x="490" y="83" text-anchor="middle" font-size="22" font-family="DejaVu Sans Mono,monospace" fill="#1f1e1d">10</text></g>
+<g id="gb" class="fade"><text x="420" y="170" font-size="13" fill="#5f5e5a">b  · addr 0x1004</text>
+<rect id="rb" class="bx" x="420" y="180" width="140" height="70" rx="8" fill="#F5F4EF" stroke="#b4b2a9"/>
+<text id="vb" x="490" y="223" text-anchor="middle" font-size="22" font-family="DejaVu Sans Mono,monospace" fill="#1f1e1d">50</text></g>
+<g transform="translate(192,106)"><g id="lp" class="fade" style="opacity:0"><rect x="-9" y="-2" width="18" height="13" rx="2" fill="#FCEBEB" stroke="#F09595"/><path d="M-5 -2 v-4 a5 5 0 0 1 10 0 v4" fill="none" stroke="#A32D2D" stroke-width="1.6"/></g></g>
+<g transform="translate(552,36)"><g id="lx" class="fade" style="opacity:0"><rect x="-9" y="-2" width="18" height="13" rx="2" fill="#FCEBEB" stroke="#F09595"/><path d="M-5 -2 v-4 a5 5 0 0 1 10 0 v4" fill="none" stroke="#A32D2D" stroke-width="1.6"/></g></g>
+<g id="dOut" transform="translate(309,96)"><g id="ld" class="fade" style="opacity:0"><rect x="-9" y="-2" width="18" height="13" rx="2" fill="#FCEBEB" stroke="#F09595"/><path d="M-5 -2 v-4 a5 5 0 0 1 10 0 v4" fill="none" stroke="#A32D2D" stroke-width="1.6"/><text x="0" y="-12" text-anchor="middle" font-size="11" fill="#A32D2D">read-only via p</text></g></g>
+</svg>
+<script>
+const SPEED=+(new URLSearchParams(location.search).get('speed')||1);
+const $=id=>document.getElementById(id);
+const S=[
+{n:'const int x',decl:'const int x = 10;',p:false,lx:true,lp:false,ld:false,x:true,
+ intro:'x itself is locked. Its value can never be written after initialisation.',
+ st:[{c:'x = 20;',k:'err',t:'a',m:'Compile error: assignment of read-only variable. x stays 10.'},
+     {c:'printf("%d", x);',k:'ok',m:'Reading is always allowed. Prints 10.'}]},
+{n:'const int *p',decl:'int a = 10, b = 50;<br>const int *p = &amp;a;   // same as: int const *p',p:true,lx:false,lp:false,ld:true,
+ intro:'Read right to left: p is a pointer to a const int. The DATA is locked, but only when accessed through p.',
+ st:[{c:'*p = 20;',k:'err',t:'d',m:'Blocked. You cannot write the value through p.'},
+     {c:'a = 20;',k:'ok',f:()=>setA(20),m:'Allowed. a itself is not const; only the view through p is read-only.'},
+     {c:'p = &b;',k:'ok',f:()=>moveP(),m:'Allowed. The pointer itself is free to point somewhere else.'}]},
+{n:'int *const p',decl:'int a = 10, b = 50;<br>int *const p = &amp;a;',p:true,lx:false,lp:true,ld:false,
+ intro:'Read right to left: p is a const pointer to an int. The POINTER (the address stored in p) is locked.',
+ st:[{c:'*p = 20;',k:'ok',f:()=>setA(20),m:'Allowed. The data at 0x1000 changes from 10 to 20.'},
+     {c:'p = &b;',k:'err',t:'p',m:'Blocked. p must always hold 0x1000, so it must be initialised at declaration.'}]},
+{n:'const int *const p',decl:'int a = 10, b = 50;<br>const int *const p = &amp;a;',p:true,lx:false,lp:true,ld:true,
+ intro:'Both locked: the address in p and the data seen through p.',
+ st:[{c:'*p = 20;',k:'err',t:'d',m:'Blocked. Data is read-only through p.'},
+     {c:'p = &b;',k:'err',t:'p',m:'Blocked. The pointer cannot move.'},
+     {c:'printf("%d", *p);',k:'ok',m:'Only reading works. Prints 10.'}]}];
+S.forEach((s,i)=>{const d=document.createElement('span');d.className='pill';d.id='dt'+i;d.textContent=s.n;$('dots').appendChild(d);});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms/SPEED));
+let ay=75;
+function arrowY(y,inst){if(inst){ay=y;$('arr').setAttribute('y2',y);$('dOut').setAttribute('transform','translate(309,'+((145+y)/2-14)+')');return;}
+ const s=ay,t0=performance.now();(function f(t){const k=Math.min(1,(t-t0)/(700/SPEED)),y2=s+(y-s)*k;$('arr').setAttribute('y2',y2);$('dOut').setAttribute('transform','translate(309,'+((145+y2)/2-14)+')');if(k<1)requestAnimationFrame(f);else ay=y;})(t0);}
+function flash(id,ok){const r=$(id);r.setAttribute('fill',ok?'#EAF3DE':'#FCEBEB');r.setAttribute('stroke',ok?'#97C459':'#F09595');setTimeout(()=>{r.setAttribute('fill','#F5F4EF');r.setAttribute('stroke','#b4b2a9');},1500/SPEED);}
+function shake(id){const e=$(id);e.classList.remove('shake');void e.getBoundingClientRect();e.classList.add('shake');}
+function setA(v){$('va').textContent=v;flash('ra',true);}
+function moveP(){$('vp').textContent='0x1004';arrowY(215);flash('rp',true);setTimeout(()=>flash('rb',true),600/SPEED);}
+function badge(k){$('badge').innerHTML=k?'<span style="font-family:Inter,Arial,sans-serif;font-size:12px;padding:3px 10px;border-radius:8px;background:'+(k=='ok'?'#EAF3DE':'#FCEBEB')+';color:'+(k=='ok'?'#3B6D11':'#A32D2D')+'">'+(k=='ok'?'allowed':'compile error')+'</span>':'';}
+async function type(t){$('stmt').textContent='';for(const ch of t){$('stmt').textContent+=ch;await sleep(55);}}
+async function scene(i){const s=S[i];
+ S.forEach((_,j)=>$('dt'+j).classList.toggle('on',j==i));
+ $('va').textContent='10';$('vb').textContent='50';$('vp').textContent='0x1000';arrowY(75,true);
+ $('la').textContent=s.x?'x  · addr 0x1000':'a  · addr 0x1000';
+ ['gp','gb','arr'].forEach(id=>$(id).style.opacity=s.p?1:0);
+ $('lx').style.opacity=s.lx?1:0;$('lp').style.opacity=s.lp?1:0;$('ld').style.opacity=s.ld?1:0;
+ $('decl').innerHTML=s.decl;$('stmt').textContent='';badge('');$('note').textContent=s.intro;
+ await sleep(3200);
+ for(const st of s.st){badge('');await type(st.c);await sleep(400);badge(st.k);$('note').textContent=st.m;
+  if(st.k=='ok'){if(st.f)st.f();}
+  else if(st.t=='p'){flash('rp',false);shake('gp');shake('lp');}
+  else if(st.t=='d'){flash('ra',false);shake('ld');shake('ga');}
+  else {flash('ra',false);shake('ga');shake('lx');}
+  await sleep(3000);}
+ await sleep(800);}
+(async()=>{for(;;){for(let i=0;i<S.length;i++)await scene(i);window.loopDone=true;}})();
+</script>
+</body>
+</html>
