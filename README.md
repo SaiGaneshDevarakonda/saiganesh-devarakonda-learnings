@@ -1,5 +1,5 @@
 # saiganesh-devarakonda-learnings
-My learnings: C, Data Structures, Peripherals &amp; Protocols, RTOS
+My learnings: C, Data Structures, Peripherals &amp; Protocols, RTOS, Multimedia
 
 | Subject | What's inside |
 |---|---|
@@ -7,6 +7,7 @@ My learnings: C, Data Structures, Peripherals &amp; Protocols, RTOS
 | [Data Structures](Data_Structures/README.md) | Linked lists (singly and doubly), substrings and sliding window, searching and sorting |
 | [Peripherals & Protocols](Peripherals_Protocols/README.md) | coming soon |
 | [RTOS](RTOS/README.md) | coming soon |
+| [Multimedia](Multimedia/README.md) | Camera ISP from light to NV12: sensor, Bayer filter, every ISP stage with pictures, YUV formats, hard vs soft ISP |
 
 ## How each topic folder is organised
 ```
