@@ -1,7 +1,5 @@
 # 01 · Camera ISP: from light to NV12
 
-**Quiz:** [quiz.md](quiz.md) · **Answers and solutions:** [answers.md](answers.md)
-
 This topic follows one picture all the way through a camera: light hits the sensor, the sensor sends raw numbers, the **ISP (Image Signal Processor)** turns them into a viewable image, and the result is stored in memory as NV12. No heavy maths: each step is explained by what it does, why it is needed, and what the picture looks like without it.
 
 ---
@@ -464,24 +462,6 @@ It is the same recipe. In a hard ISP a dedicated machine cooks it. In a soft ISP
 - [A peek inside your camera: the ISP pipeline (eInfochips)](https://www.einfochips.com/blog/a-peek-inside-your-camera-i-image-signal-processing-isp-pipeline/)
 - [YUV pixel formats (VideoLAN wiki)](https://wiki.videolan.org/YUV)
 - [Planar and semi-planar YUV formats (Linux kernel documentation)](https://docs.kernel.org/6.0/userspace-api/media/v4l/pixfmt-yuv-planar.html)
-
----
-
-## Practice Questions
-Solutions are in [answers.md](answers.md#practice-solutions).
-
-1. Calculate the size in bytes of one **640 × 480** frame in RAW10 (packed), RGB888, YUYV and NV12.
-2. For a **1280 × 720** NV12 frame, how many Y, U and V values are there, and at what byte offset does the UV plane start?
-3. A camera records **1920 × 1080 NV12 at 30 frames per second**. How much memory does one second need? If the encoder outputs 4 Mbit/s, what is the compression ratio?
-4. Draw the Bayer pattern for a 4 × 4 sensor. For the green pixel at row 1, column 2 (counting from 1), which neighbours give it red and which give it blue?
-5. Write out the memory order of a **4 × 2** image in NV12, I420 and YUYV.
-6. A test picture shows (a) grey-looking blacks, (b) a few bright dots that never move, (c) dark corners, (d) an orange tint indoors. Name the ISP stage to check for each.
-
-**Explain out loud:**
-
-7. Why is the YUV conversion not needed just to view a picture, and why is it done anyway?
-8. A soft ISP produces the same image as a hard ISP. Give three reasons a product would still use a hard ISP.
-9. A MIPI link reports many checksum errors but no frame sync errors. Where do you look first, and why?
 
 ---
 

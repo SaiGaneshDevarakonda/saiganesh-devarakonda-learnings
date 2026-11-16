@@ -1,12 +1,6 @@
 # Multimedia
 
-Each topic folder has three files:
-
-| File | What it has |
-|---|---|
-| `README.md` | **Theory** (diagrams, animations), **Practice Questions**, **Interview One-liner** |
-| `quiz.md` | Multiple-choice quiz (questions only) with a link to its answer sheet |
-| `answers.md` | Quiz answer key **and** solutions to the practice questions |
+Each topic folder has a `README.md` with the theory, diagrams and an interview one-liner.
 
 Diagrams are in each topic's `assets/` folder. Animations are GIFs that play right on GitHub, and the `.html` files are interactive versions: download one and open it in a browser.
 
