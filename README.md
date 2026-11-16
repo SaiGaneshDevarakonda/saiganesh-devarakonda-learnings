@@ -5,7 +5,7 @@ My learnings: C, Data Structures, Peripherals &amp; Protocols, RTOS, Multimedia
 |---|---|
 | [C](C/README.md) | 8 topics plus a final test: notes with diagrams and animations, practice questions, quizzes (340+ questions), answer sheets and solutions |
 | [Data Structures](Data_Structures/README.md) | Linked lists (singly and doubly), substrings and sliding window, searching and sorting |
-| [Peripherals & Protocols](Peripherals_Protocols/README.md) | coming soon |
+| [Peripherals & Protocols](Peripherals_Protocols/README.md) | PCIe from the ground up: lanes, topology, packets and layers, encoding, reads and writes, credits, link training, enumeration |
 | [RTOS](RTOS/README.md) | coming soon |
 | [Multimedia](Multimedia/README.md) | Camera ISP from light to NV12: sensor, Bayer filter, every ISP stage with pictures, YUV formats, hard vs soft ISP |
 

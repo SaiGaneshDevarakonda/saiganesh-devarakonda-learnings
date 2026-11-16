@@ -1,16 +1,8 @@
 # Peripherals & Protocols
 
-One subfolder per topic: `01_Topic_Name/README.md`
+Each topic folder has a `README.md` with the theory, diagrams and an interview one-liner. Diagrams are in each topic's `assets/` folder; animations are GIFs that play right on GitHub.
 
-## Template
-
-### Theory
-_Concept, diagrams, key points._
-
-### Practice Questions
-1.
-2.
-3.
-
-### Interview One-liner
-_One sentence to revise quickly._
+## Topics
+| # | Topic | Highlights |
+|---|---|---|
+| 01 | [PCIe (PCI Express)](01_PCIe/README.md) | why PCIe replaced PCI, lanes and skew, Root Complex / Switch / Endpoint, TLPs and the 3 layers, LCRC and ACK/NAK, why encoding is needed (8b/10b, CDR), posted vs non-posted, credits, LTSSM, config space and enumeration |
