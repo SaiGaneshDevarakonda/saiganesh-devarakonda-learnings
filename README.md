@@ -1,11 +1,12 @@
 # saiganesh-devarakonda-learnings
-My learnings: C, Data Structures, Peripherals &amp; Protocols, RTOS, Multimedia
+My learnings: C, Data Structures, Peripherals &amp; Protocols, Firmware, RTOS, Multimedia
 
 | Subject | What's inside |
 |---|---|
 | [C](C/README.md) | 8 topics plus a final test: notes with diagrams and animations, practice questions, quizzes (340+ questions), answer sheets and solutions |
 | [Data Structures](Data_Structures/README.md) | Linked lists (singly and doubly), substrings and sliding window, searching and sorting |
 | [Peripherals & Protocols](Peripherals_Protocols/README.md) | PCIe from the ground up: lanes, topology, packets and layers, encoding, reads and writes, credits, link training, enumeration |
+| [Firmware](Firmware/README.md) | Firmware vs OS, GPIO ports and bits, mask writes and W1C registers, register access styles, memory layout, vector table and startup code, SoC boot chain, ISRs and thread–ISR locking, mutex vs semaphore, priority inversion |
 | [RTOS](RTOS/README.md) | coming soon |
 | [Multimedia](Multimedia/README.md) | Camera ISP from light to NV12: sensor, ADC, Bayer filter, every ISP stage with pictures, YUV formats, IBA/OBA; ISP to video encoder: low latency and the Sync IP, V4L2 buffers, H.264 vs H.265, CTUs and slices; HDMI bring-up and debug in bare metal and Linux |
 
