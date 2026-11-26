@@ -22,7 +22,7 @@ Three points that are easy to mix up:
 - **The Sync IP belongs to setup B, not to LILO.** In LILO nothing is written to memory, so there is nothing for a Sync IP to watch.
 - **The OBA does not hold frames.** It has only small FIFOs, a few lines deep. One slice of a 1080p frame is about 400 KB, so frames and slices always live in DDR, never inside the ISP.
 
-On the Zynq UltraScale+ VCU (product guide PG252) the encoder reads its input frames from memory over AXI. That is why the encoder's low-latency mode is setup B (DDR plus Sync IP), not a direct live stream from the ISP.
+Many hardware encoders read their input frames from memory over AXI. For such an encoder, low-latency mode is setup B (DDR plus Sync IP), not a direct live stream from the ISP.
 
 ---
 
@@ -37,7 +37,7 @@ On the Zynq UltraScale+ VCU (product guide PG252) the encoder reads its input fr
 - **Strength:** the ISP and the encoder are decoupled. If either one stalls briefly, the buffer absorbs it.
 - **Frame done means complete, not correct.** It guarantees that every pixel was written before the encoder reads. Bad data from upstream (a sensor or MIPI error) is still encoded faithfully, so the error interrupts from topic 01 still matter.
 
-**Low-latency mode (B).** The frame is cut into horizontal **slices** (section 11). The encoder starts on slice 0 as soon as it has been written, while the ISP is still writing slice 1. PG252 describes the VCU's low-latency mode as processing in slice mode, which cuts the processing latency from one frame to one frame divided by the number of slices.
+**Low-latency mode (B).** The frame is cut into horizontal **slices** (section 11). The encoder starts on slice 0 as soon as it has been written, while the ISP is still writing slice 1. Working in slice mode cuts the encoder's processing latency from one frame to one frame divided by the number of slices.
 
 - **Cost:** there is no full-frame slack any more. Every stage (ISP clock, DDR bandwidth and QoS, encoder throughput) must keep up with the sensor's pixel rate in real time.
 - **Typical users:** video calls, drones, cars, AR glasses: anything where a person or a control loop reacts to the picture.
@@ -53,7 +53,7 @@ If the encoder starts early, the obvious danger is that it reads lines the ISP h
 
 1. Software programs the Sync IP for each buffer with the luma and chroma **start and end addresses**, for both the producer (the frame buffer write IP) and the consumer (the VCU).
 2. The Sync IP **watches the producer's AXI write addresses** (the dashed line). From them it always knows how far down the frame the writing has got.
-3. The encoder's **read requests pass through the Sync IP**. A read below the written point goes straight through. A read beyond it is **held** until that slice has been written. PG252 puts it simply: the Sync IP blocks the consumer's transactions until the producer has finished writing a slice of data to memory.
+3. The encoder's **read requests pass through the Sync IP**. A read below the written point goes straight through. A read beyond it is **held** until that slice has been written. In short: the Sync IP blocks the consumer's transactions until the producer has finished writing a slice of data to memory.
 4. The producer gives the consumer an **early buffer done** signal as soon as writing starts, so the encoder gets the buffer immediately and the Sync IP stops it from overtaking the writer.
 
 Because the Sync IP works out progress from the addresses itself, the frame buffer write IP still needs only its normal **frame done** interrupt. No per-slice interrupt is needed.
@@ -79,11 +79,11 @@ A typical capture-and-encode command never mentions a memory address:
 ```sh
 gst-launch-1.0 v4l2src device=/dev/video0 io-mode=dmabuf \
   ! video/x-raw,format=NV12,width=1920,height=1080,framerate=60/1 \
-  ! omxh265enc num-slices=8 target-bitrate=8000 \
+  ! <h265-hw-encoder> num-slices=8 target-bitrate=8000 \
   ! h265parse ! filesink location=out.h265
 ```
 
-> Element and property names vary between releases; this shows the shape of a pipeline, not an exact recipe.
+> `<h265-hw-encoder>` stands for the board's hardware H.265 encoder element. Element and property names vary between platforms; this shows the shape of a pipeline, not an exact recipe.
 
 The addresses are handled entirely by the Linux kernel:
 
@@ -125,7 +125,7 @@ H.264 and H.265 are **not** "the encoder" and "the decoder". Each is a complete 
 |---|---|---|
 | Other name | AVC (Advanced Video Coding) | HEVC (High Efficiency Video Coding) |
 | Published | 2003 | 2013 |
-| Basic block | Fixed 16×16 **macroblock** | **CTU** (coding tree unit) of 16, 32 or 64; the Zynq UltraScale+ VCU uses 32×32. It is split by a quadtree down to 8×8 |
+| Basic block | Fixed 16×16 **macroblock** | **CTU** (coding tree unit) of 16, 32 or 64; many hardware encoders use 32×32. It is split by a quadtree down to 8×8 |
 | Compression | Baseline | About **half the bitrate** for the same quality |
 | Cost | Lighter hardware | More computation and bigger on-chip buffers |
 | Typical use | Video calls, older devices, widest compatibility | 4K, storage, streaming where bandwidth costs money |
@@ -161,12 +161,12 @@ Flat sky needs almost no coefficients, a sharp edge needs a few, and tree leaves
 
 | Level | What it is | What it decides |
 |---|---|---|
-| **CTU** | The tile, 32×32 on the VCU | Holds a luma block and its two chroma blocks |
+| **CTU** | The tile, for example 32×32 | Holds a luma block and its two chroma blocks |
 | **CU** (coding unit) | A square from the quadtree split: 32, 16 or 8 | Intra or inter prediction |
 | **PU** (prediction unit) | A part of a CU | Carries the motion vectors |
 | **TU** (transform unit) | A part of a CU | The residual block that is transformed and quantized |
 
-A big CU covers a flat area with one set of decisions, which saves bits. The quadtree splits only where there is detail. The standard allows CTUs up to 64×64. The VCU stops at 32×32 because bigger CTUs need bigger on-chip line buffers and more memory bandwidth per row. This is also why H.265 slices on the VCU are counted in 32-line rows.
+A big CU covers a flat area with one set of decisions, which saves bits. The quadtree splits only where there is detail. The standard allows CTUs up to 64×64. Many hardware encoders stop at 32×32 because bigger CTUs need bigger on-chip line buffers and more memory bandwidth per row. This is also why H.265 slices on such an encoder are counted in 32-line rows.
 
 ---
 
@@ -228,7 +228,7 @@ The user controls **λ** indirectly, through the normal encoder settings:
 | Rate control | `control-rate` (constant, variable, constant QP), `target-bitrate` | Sets the bit budget |
 | QP (quantization parameter) | `min-qp`, `max-qp`, `qp-mode` (including region-of-interest) | λ is derived from QP |
 
-> The property names are from the GStreamer encoder elements used with the VCU; other encoders expose the same ideas under similar names.
+> Property names differ between encoders; the ideas are the same.
 
 A lower bitrate means a higher QP and a higher λ. Bits become "expensive", so the encoder picks **bigger blocks** and keeps fewer coefficients. A higher bitrate does the opposite: more fine splits and more detail. The split sensitivity slider in the interactive page stands in for this effect.
 
@@ -236,9 +236,9 @@ A lower bitrate means a higher QP and a higher λ. Bits become "expensive", so t
 
 ### 11. Slices
 
-A **slice** is a horizontal band of the frame made of **whole block rows**: 16-line macroblock rows in H.264, 32-line CTU rows in H.265 on the VCU. It is not a few bytes and not a single line. The encoder compresses each slice independently: prediction does not cross a slice boundary, and each slice has its own header.
+A **slice** is a horizontal band of the frame made of **whole block rows**: 16-line macroblock rows in H.264, 32-line CTU rows in H.265 with 32×32 CTUs. It is not a few bytes and not a single line. The encoder compresses each slice independently: prediction does not cross a slice boundary, and each slice has its own header.
 
-**Who sets the number of slices.** It is an **encoder setting chosen by software** when the encoder is set up, for example `num-slices` on the GStreamer encoder element or the slice setting in the encoder's configuration file. The **default is one slice per frame**, which is why a normal pipeline never mentions it. The ISP knows nothing about slices; it just writes lines. The Vivado VCU settings size the hardware resources (maximum resolution, number of streams, buffers); the slice count is chosen per stream at run time.
+**Who sets the number of slices.** It is an **encoder setting chosen by software** when the encoder is set up, for example `num-slices` on the GStreamer encoder element or the slice setting in the encoder's configuration file. The **default is one slice per frame**, which is why a normal pipeline never mentions it. The ISP knows nothing about slices; it just writes lines. The hardware design settings size the encoder's resources (maximum resolution, number of streams, buffers); the slice count is chosen per stream at run time.
 
 **How slices are calculated**
 
@@ -335,9 +335,8 @@ At small resolutions there are only a few rows to share out, so low-latency mode
 
 #### Further reading
 
-- [VCU latency modes, PG252 (AMD)](https://docs.amd.com/r/en-US/pg252-vcu/VCU-Latency-Modes)
-- [Programming sequence of the synchronization IP, PG252 (AMD)](https://docs.amd.com/r/2021.2-English/pg252-vcu/Programming-Sequence-of-Synchronization-IP)
-- [Versal AI Edge Series Gen 2 ISP outputs, PG432 (AMD)](https://docs.amd.com/r/en-US/pg432-versal-ai-edge-series-gen-2-isp/Outputs-Tab)
+- [High Efficiency Video Coding (Wikipedia)](https://en.wikipedia.org/wiki/High_Efficiency_Video_Coding)
+- [Advanced Video Coding (Wikipedia)](https://en.wikipedia.org/wiki/Advanced_Video_Coding)
 - [videobuf2 and V4L2 buffers (Linux kernel documentation)](https://docs.kernel.org/driver-api/media/v4l2-videobuf2.html)
 - [dma-buf buffer sharing (Linux kernel documentation)](https://docs.kernel.org/driver-api/dma-buf.html)
 
