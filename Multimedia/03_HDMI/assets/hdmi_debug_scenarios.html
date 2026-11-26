@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDMI debug scenarios</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--b:rgba(0,0,0,.14);--t:#5f5e5a;--bg-neutral:#F5F4EF;--border-accent:#378ADD;--radius:8px}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--text-primary);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 6px}
+p.hint{font-size:13px;color:var(--text-secondary);margin:0 0 12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,.22);border-radius:8px;background:#fff;color:var(--text-primary);cursor:pointer}
+select{font:inherit;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.22);background:#fff}
+svg text{font-family:Inter,'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;fill:#1f1e1d}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#1f1e1d}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-teal>rect,rect.c-teal{fill:#E1F5EE;stroke:#0F6E56}.c-teal>.th{fill:#085041}.c-teal>.ts{fill:#0F6E56}
+.c-purple>rect,rect.c-purple{fill:#EEEDFE;stroke:#534AB7}.c-purple>.th{fill:#3C3489}.c-purple>.ts{fill:#534AB7}
+.c-coral>rect,rect.c-coral{fill:#FAECE7;stroke:#993C1D}.c-coral>.th{fill:#712B13}.c-coral>.ts{fill:#993C1D}
+.c-gray>rect,rect.c-gray{fill:#F1EFE8;stroke:#5F5E5A}.c-gray>.th{fill:#2C2C2A}.c-gray>.ts{fill:#5F5E5A}
+.card{background:var(--bg-neutral);border-radius:var(--radius);padding:10px 12px}
+.card .l{font-size:13px;color:var(--text-secondary)}.card .v{font-size:18px;font-weight:500}
+</style>
+</head>
+<body>
+<style>
+:root{--border-accent:#378ADD;--bg-accent:#E6F1FB;--text-accent:#185FA5;--bg-danger:#FCEBEB;--text-danger:#A32D2D;--bg-success:#EAF3DE;--text-success:#3B6D11;--bg-warning:#FAEEDA;--text-warning:#854F0B;--font-mono:'DejaVu Sans Mono',Consolas,monospace}
+.wrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px}
+.sc{display:block;width:100%;text-align:left;margin:0 0 6px;font-size:13px;padding:7px 10px}
+.sc.on{border-color:var(--border-accent);background:var(--bg-accent);color:var(--text-accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{font-size:12px;padding:4px 8px;border-radius:var(--radius);background:var(--bg-neutral);color:var(--text-secondary)}
+.chip.bad{background:var(--bg-danger);color:var(--text-danger);font-weight:500}
+.chip.ok{background:var(--bg-success);color:var(--text-success)}
+.first{background:var(--bg-warning);color:var(--text-warning);border-radius:var(--radius);padding:8px 10px;font-size:14px}
+.checks{font-size:13px;color:var(--text-secondary);margin:8px 0 0;padding-left:18px;line-height:1.6}
+.legend{font-size:12px;color:var(--text-secondary);margin-top:10px}
+code{font-family:var(--font-mono);font-size:12px}
+@keyframes fl{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes bl{0%,45%{opacity:1}50%,95%{opacity:0}100%{opacity:1}}
+@keyframes rl{from{transform:translateY(0)}to{transform:translateY(-30px)}}
+@media (prefers-reduced-motion:no-preference){.a-fl{animation:fl .25s linear infinite}.a-bl{animation:bl 2.4s linear infinite}.a-rl{animation:rl .6s linear infinite}}
+</style>
+<h1>HDMI debug scenarios</h1>
+<p class="hint">Pick a symptom. The screen shows what you see, the red stage is where the problem is, and the yellow box is the first thing to check.</p>
+<div class="wrap" id="shot">
+<div id="list"></div>
+<div>
+<svg width="100%" viewBox="0 0 440 190" role="img"><title>What the monitor shows</title>
+<defs><clipPath id="scr"><rect x="70" y="10" width="300" height="160" rx="4"/></clipPath></defs>
+<rect x="64" y="4" width="312" height="172" rx="8" fill="#2C2C2A"/>
+<g clip-path="url(#scr)" id="screen"></g>
+<rect x="200" y="176" width="40" height="8" fill="#5F5E5A"/>
+</svg>
+<div class="chips" id="chips"></div>
+<div class="first" id="first"></div>
+<ul class="checks" id="checks"></ul>
+<div class="legend">Green = already working · Red = look here · Grey = check later</div>
+</div></div>
+<script>
+const ST=['HPD','EDID / DDC','Clock / PLL','SCDC / FRL','Bridge lock','Memory fetch','Colours','HDCP','Compositor'];
+const BARS=['#FFFFFF','#F6D36B','#5DCAA5','#97C459','#D4537E','#E24B4A','#378ADD','#2C2C2A'];
+const SC=[
+{n:'Not detected at all',s:0,scr:'nosig',f:'Check HPD: <code>cat /sys/class/drm/*HDMI*/status</code> and the HPD interrupt count',c:['Cable and connector seated','+5 V present on the cable','HPD pin level at the sink']},
+{n:'Detected, but no modes',s:1,scr:'nosig',f:'Read the EDID: <code>cat /sys/class/drm/*HDMI*/edid | edid-decode</code>',c:['Read too soon after HPD? wait ~100 ms and retry','DDC pull-ups, I2C at 100 kHz','Force 1080p60 to keep going meanwhile']},
+{n:'"No signal" on monitor',s:2,scr:'nosig',f:'Check PHY PLL lock status in the driver logs or registers',c:['Reference clock chip programmed?','Correct frequency for this mode?','Clock stable before PHY start?']},
+{n:'"No signal" only at 4K60',s:3,scr:'nosig4k',f:'Confirm SCDC scrambling and clock ratio were written (TMDS > 340 MHz)',c:['1080p works? then the slow link is fine','Read SCDC lock bits and error counters','Try a shorter, certified cable']},
+{n:'Picture flickers or rolls',s:4,scr:'roll',f:'Count bridge lock / unlock interrupts while it flickers',c:['Video clock = pixel clock ÷ PPC?','Same timing in bridge and TX core?','Compare clk_summary with the mode']},
+{n:'Picture blinks on and off',s:0,scr:'blink',f:'Watch for a hotplug storm: <code>dmesg -w | grep -i hotplug</code>',c:['Status toggling connected / disconnected','HPD interrupt count climbing fast','Loose cable or weak HPD signal']},
+{n:'Lines or glitches under load',s:5,scr:'glitch',f:'Read the display underrun counters in debugfs',c:['Same with test pattern? if not, it is memory','DDR bandwidth and QoS for display','Fewer layers or lower resolution fixes it?']},
+{n:'Pink, green or washed out',s:6,scr:'tint',f:'Compare output format with the AVI InfoFrame (RGB vs YCbCr, full vs limited)',c:['YCbCr shown as RGB gives pink / green','Full vs limited range gives washed out','Check colour depth and order']},
+{n:'Desktop fine, movie black',s:7,scr:'movie',f:'Check HDCP authentication status and version',c:['Sink supports HDCP 2.2 for 4K?','Splitter or adapter in between?','HDCP keys provisioned on the device?']},
+{n:'modetest fine, desktop broken',s:8,scr:'split',f:'Kernel and hardware are fine: debug the compositor and app buffers',c:['Compositor logs, chosen mode and format','Buffer fences and flip timing','Try another compositor or a simple app']}];
+let cur=0;
+function bars(x,y,w,h){let s='';for(let i=0;i<8;i++)s+=`<rect x="${x+i*w/8}" y="${y}" width="${w/8+0.5}" height="${h}" fill="${BARS[i]}"/>`;return s;}
+function screen(k){
+ const X=70,Y=10,W=300,H=160;
+ if(k==='nosig'||k==='nosig4k')return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#111"/><text x="220" y="${k==='nosig'?95:85}" text-anchor="middle" style="fill:#B4B2A9;font-size:16px">No signal</text>`+(k==='nosig4k'?`<text x="220" y="110" text-anchor="middle" style="fill:#888780;font-size:12px">3840×2160 @ 60 Hz</text>`:'');
+ if(k==='roll')return `<g class="a-rl">${bars(X,Y,W,H+30)}</g><rect class="a-fl" x="${X}" y="${Y}" width="${W}" height="${H}" fill="#000" opacity="0.5"/>`;
+ if(k==='blink')return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#111"/><g class="a-bl">${bars(X,Y,W,H)}</g>`;
+ if(k==='glitch'){let s=bars(X,Y,W,H);[[30,3],[64,2],[101,4],[132,2]].forEach(l=>s+=`<rect class="a-fl" x="${X}" y="${Y+l[0]}" width="${W}" height="${l[1]}" fill="#E24B4A"/>`);s+=`<rect x="${X+180}" y="${Y+70}" width="120" height="6" fill="#97C459"/>`;return s;}
+ if(k==='tint'){let s='';const T=['#F4C0D1','#ED93B1','#97C459','#D4537E','#C0DD97','#F09595','#ED93B1','#3C3489'];for(let i=0;i<8;i++)s+=`<rect x="${X+i*W/8}" y="${Y}" width="${W/8+0.5}" height="${H}" fill="${T[i]}"/>`;return s;}
+ if(k==='movie')return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#E6F1FB"/><rect x="${X}" y="${Y}" width="${W}" height="14" fill="#378ADD"/><rect x="${X+40}" y="${Y+30}" width="220" height="115" rx="4" fill="#000"/><text x="220" y="${Y+92}" text-anchor="middle" style="fill:#F09595;font-size:13px">HDCP error</text>`;
+ if(k==='split')return bars(X,Y,W/2,H)+`<rect x="${X+W/2}" y="${Y}" width="${W/2}" height="${H}" fill="#111"/><text x="${X+W*0.75}" y="${Y+86}" text-anchor="middle" style="fill:#B4B2A9;font-size:12px">Desktop: black</text><text x="${X+W*0.25}" y="${Y+H-8}" text-anchor="middle" style="fill:#2C2C2A;font-size:11px">modetest: OK</text>`;
+ return '';}
+function render(){
+ const s=SC[cur];
+ document.getElementById('list').innerHTML=SC.map((x,i)=>`<button class="sc ${i===cur?'on':''}" onclick="pick(${i})">${x.n}</button>`).join('');
+ document.getElementById('screen').innerHTML=screen(s.scr);
+ document.getElementById('chips').innerHTML=ST.map((t,i)=>`<span class="chip ${i===s.s?'bad':(i<s.s?'ok':'')}">${t}</span>`).join('');
+ document.getElementById('first').innerHTML='<b>First step:</b> '+s.f;
+ document.getElementById('checks').innerHTML=s.c.map(c=>`<li>${c}</li>`).join('');}
+function pick(i){cur=i;render();}
+render();
+</script>
+</body>
+</html>
