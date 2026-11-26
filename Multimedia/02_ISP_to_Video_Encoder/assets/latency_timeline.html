@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame-buffer vs low-latency mode</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--b:rgba(0,0,0,.14);--t:#5f5e5a;--bg-neutral:#F5F4EF;--border-accent:#378ADD;--radius:8px}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--text-primary);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 6px}
+p.hint{font-size:13px;color:var(--text-secondary);margin:0 0 12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,.22);border-radius:8px;background:#fff;color:var(--text-primary);cursor:pointer}
+select{font:inherit;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.22);background:#fff}
+svg text{font-family:Inter,'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;fill:#1f1e1d}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#1f1e1d}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-teal>rect,rect.c-teal{fill:#E1F5EE;stroke:#0F6E56}.c-teal>.th{fill:#085041}.c-teal>.ts{fill:#0F6E56}
+.c-purple>rect,rect.c-purple{fill:#EEEDFE;stroke:#534AB7}.c-purple>.th{fill:#3C3489}.c-purple>.ts{fill:#534AB7}
+.c-coral>rect,rect.c-coral{fill:#FAECE7;stroke:#993C1D}.c-coral>.th{fill:#712B13}.c-coral>.ts{fill:#993C1D}
+.c-gray>rect,rect.c-gray{fill:#F1EFE8;stroke:#5F5E5A}.c-gray>.th{fill:#2C2C2A}.c-gray>.ts{fill:#5F5E5A}
+.card{background:var(--bg-neutral);border-radius:var(--radius);padding:10px 12px}
+.card .l{font-size:13px;color:var(--text-secondary)}.card .v{font-size:18px;font-weight:500}
+</style>
+</head>
+<body>
+<h1>Frame-buffer mode vs low-latency mode</h1>
+<p class="hint">The orange line is time. Watch when the encoder can start in each mode.</p>
+<svg width="100%" viewBox="0 0 680 340" role="img"><title>Frame-buffer vs low-latency timing</title>
+<text class="th" x="40" y="36">Frame-buffer mode (LIMO, start on frame done)</text>
+<text class="ts" x="40" y="76">ISP writes</text><text class="ts" x="40" y="111">VCU encodes</text>
+<text class="ts" x="40" y="148" id="m1">First output after about 1 full frame (33 ms at 30 fps)</text>
+<text class="th" x="40" y="190">Low-latency mode (LIMO + Sync IP, start per slice)</text>
+<text class="ts" x="40" y="230">ISP writes</text><text class="ts" x="40" y="265">VCU encodes</text>
+<text class="ts" x="40" y="302" id="m2">First output after about 1 slice (a few ms)</text>
+<g id="bars"></g>
+<text class="ts" x="160" y="328" text-anchor="middle">0 ms</text><text class="ts" x="386" y="328" text-anchor="middle">33 ms</text><text class="ts" x="612" y="328" text-anchor="middle">66 ms</text>
+<line id="sw" x1="160" y1="50" x2="160" y2="280" stroke="#BA7517" stroke-width="1.5"/>
+<text class="th" id="clk" x="640" y="36" text-anchor="end" style="fill:#854F0B">0 ms</text>
+</svg>
+<script>
+const PX=226/33,X0=160;
+const bars=[[160,60,226,'#F0997B','Frame N into DDR'],[390,95,226,'#5DCAA5','Encode frame N']];
+for(let i=0;i<8;i++){bars.push([160+i*28,214,26,'#F0997B','']);bars.push([192+i*28,249,26,'#5DCAA5','']);}
+let h='';bars.forEach((b,i)=>{h+=`<rect x="${b[0]}" y="${b[1]}" width="${b[2]}" height="24" rx="3" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/><rect id="f${i}" x="${b[0]}" y="${b[1]}" width="0" height="24" rx="3" fill="${b[3]}"/>`;if(b[4])h+=`<text class="ts" x="${b[0]+b[2]/2}" y="${b[1]+16}" text-anchor="middle" style="fill:#2C2C2A">${b[4]}</text>`;});
+document.getElementById('bars').innerHTML=h;
+function setT(ms){const x=X0+ms*PX;document.getElementById('sw').setAttribute('x1',x);document.getElementById('sw').setAttribute('x2',x);
+document.getElementById('clk').textContent=Math.round(ms)+' ms';
+bars.forEach((b,i)=>document.getElementById('f'+i).setAttribute('width',Math.max(0,Math.min(b[2],x-b[0]))));
+document.getElementById('m1').style.fill=ms>=33.6?'#0F6E56':'#5f5e5a';document.getElementById('m2').style.fill=ms>=4.7?'#0F6E56':'#5f5e5a';}
+let t0=null;const LOOP=4000;
+function loop(t){if(window.__capture)return;if(t0===null)t0=t;const p=((t-t0)%LOOP)/LOOP;setT(Math.min(66,p*72));requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
