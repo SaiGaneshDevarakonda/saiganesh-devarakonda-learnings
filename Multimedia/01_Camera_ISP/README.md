@@ -401,7 +401,7 @@ Error interrupts report problems: the MIPI errors from section 4, a frame with t
 
 #### The ISP's two doors: IBA and OBA
 
-Many SoC ISPs have a dedicated block at each end of the pipeline. In AMD's Versal AI Edge Gen 2 ISP (product guide PG432) they are called the **IBA** (input buffer adapter) and the **OBA** (output buffer adapter).
+Many SoC ISPs have a dedicated block at each end of the pipeline. Here they are called the **IBA** (input buffer adapter) and the **OBA** (output buffer adapter).
 
 ![ISP inputs and outputs](assets/18_isp_inputs_outputs.svg)
 
@@ -433,7 +433,7 @@ Many SoC ISPs have a dedicated block at each end of the pipeline. In AMD's Versa
 | Output overflow (OBA) | The next block or the memory writes could not keep up | Downstream back-pressure, or not enough DDR bandwidth |
 | Parity error | A bit flipped in one of the ISP's internal memories | Functional safety: the error is reported to the system's error manager (see section 12) |
 
-PG432 sizes the minimum ISP core clock as the sum of width × height × frame rate × 1.2 over all streams on that core. The extra 20% is headroom, so the core always drains the input FIFO faster than the sensor fills it.
+A common rule for the minimum ISP core clock is the sum of width × height × frame rate × 1.2 over all streams on that core. The extra 20% is headroom, so the core always drains the input FIFO faster than the sensor fills it.
 
 **Debug order for a bad or missing frame.** Follow the data:
 
@@ -444,7 +444,7 @@ PG432 sizes the minimum ISP core clock as the sum of width × height × frame ra
 
 #### Two outputs: main path and self path
 
-Older ISP designs and their Linux drivers (for example the Rockchip ISP driver, with its `mainpath` and `selfpath` video nodes) call the two outputs the **main path** and the **self path**. PG432 calls them the **primary** and **secondary** output. Same idea:
+Many ISP designs and their Linux drivers call the two outputs the **main path** and the **self path**. Others call them the **primary** and **secondary** output. Same idea:
 
 | | Main path (primary) | Self path (secondary) |
 |---|---|---|
@@ -456,7 +456,7 @@ Both come from the same processed picture, so one camera can feed a recording an
 
 #### Where the output goes: memory or live
 
-Each output either goes into memory or streams straight on. PG432 names the ISP's input/output modes **LILO** and **LIMO** (and **MIMO** for memory input). The letters read as Live In / Memory In, Live Out / Memory Out:
+Each output either goes into memory or streams straight on. The ISP's input/output modes are often written **LILO**, **LIMO** and **MIMO**. The letters read as Live In / Memory In, Live Out / Memory Out:
 
 | Mode | Input | Output | What it means |
 |---|---|---|---|
@@ -571,8 +571,6 @@ It is the same recipe. In a hard ISP a dedicated machine cooks it. In a soft ISP
 - [A peek inside your camera: the ISP pipeline (eInfochips)](https://www.einfochips.com/blog/a-peek-inside-your-camera-i-image-signal-processing-isp-pipeline/)
 - [YUV pixel formats (VideoLAN wiki)](https://wiki.videolan.org/YUV)
 - [Planar and semi-planar YUV formats (Linux kernel documentation)](https://docs.kernel.org/6.0/userspace-api/media/v4l/pixfmt-yuv-planar.html)
-- [Versal AI Edge Series Gen 2 ISP product guide, PG432 (AMD)](https://docs.amd.com/r/en-US/pg432-versal-ai-edge-series-gen-2-isp/Inputs-Tab)
-- [ISP tiles in the Versal SoC design guide, UG1273 (AMD)](https://docs.amd.com/r/2025.1-English/ug1273-versal-acap-design/ISP)
 
 ---
 
