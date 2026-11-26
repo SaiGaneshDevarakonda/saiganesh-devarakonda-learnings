@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDMI connection sequence</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--b:rgba(0,0,0,.14);--t:#5f5e5a;--bg-neutral:#F5F4EF;--border-accent:#378ADD;--radius:8px}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--text-primary);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 6px}
+p.hint{font-size:13px;color:var(--text-secondary);margin:0 0 12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,.22);border-radius:8px;background:#fff;color:var(--text-primary);cursor:pointer}
+select{font:inherit;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.22);background:#fff}
+svg text{font-family:Inter,'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;fill:#1f1e1d}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#1f1e1d}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-teal>rect,rect.c-teal{fill:#E1F5EE;stroke:#0F6E56}.c-teal>.th{fill:#085041}.c-teal>.ts{fill:#0F6E56}
+.c-purple>rect,rect.c-purple{fill:#EEEDFE;stroke:#534AB7}.c-purple>.th{fill:#3C3489}.c-purple>.ts{fill:#534AB7}
+.c-coral>rect,rect.c-coral{fill:#FAECE7;stroke:#993C1D}.c-coral>.th{fill:#712B13}.c-coral>.ts{fill:#993C1D}
+.c-gray>rect,rect.c-gray{fill:#F1EFE8;stroke:#5F5E5A}.c-gray>.th{fill:#2C2C2A}.c-gray>.ts{fill:#5F5E5A}
+.card{background:var(--bg-neutral);border-radius:var(--radius);padding:10px 12px}
+.card .l{font-size:13px;color:var(--text-secondary)}.card .v{font-size:18px;font-weight:500}
+</style>
+</head>
+<body>
+<style>
+:root{--border-strong:rgba(0,0,0,.3)}
+@keyframes fl{to{stroke-dashoffset:-16}}
+.w{stroke:var(--border-strong);stroke-width:1.5;fill:none}
+.w.on{stroke:#D85A30;stroke-width:2.5;stroke-dasharray:8 8}
+@media (prefers-reduced-motion:no-preference){.w.on{animation:fl .6s linear infinite}.w.on.rev{animation-direction:reverse}}
+.pill{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--border-strong);margin:0 3px}
+.pill.on{background:#D85A30}
+</style>
+<h1>HDMI: from plugging in the cable to a picture</h1>
+<p class="hint">Use the arrows to step through the connection.</p>
+<div id="shot">
+<svg width="100%" viewBox="0 0 680 290" role="img"><title>HDMI source and sink with cable signals</title>
+<g class="c-purple"><rect x="30" y="30" width="170" height="240" rx="12" stroke-width="0.5"/><text class="th" x="115" y="54" text-anchor="middle">Source (TX)</text><text class="ts" x="115" y="72" text-anchor="middle">SoC, laptop, player</text></g>
+<g class="c-gray"><rect x="50" y="200" width="130" height="50" rx="8" stroke-width="0.5"/><text class="th" x="115" y="218" text-anchor="middle" dominant-baseline="central">HDMI TX + PHY</text><text class="ts" x="115" y="236" text-anchor="middle" dominant-baseline="central">PLL, serializer</text></g>
+<g class="c-teal"><rect x="480" y="30" width="170" height="240" rx="12" stroke-width="0.5"/><text class="th" x="565" y="54" text-anchor="middle">Sink (RX)</text><text class="ts" x="565" y="72" text-anchor="middle">TV, monitor</text></g>
+<g class="c-gray"><rect x="500" y="130" width="130" height="40" rx="8" stroke-width="0.5"/><text class="th" x="565" y="150" text-anchor="middle" dominant-baseline="central">EDID 0x50 / SCDC 0x54</text></g>
+<g class="c-gray"><rect x="500" y="200" width="130" height="50" rx="8" stroke-width="0.5"/><text class="th" x="565" y="218" text-anchor="middle" dominant-baseline="central">HDMI RX + PHY</text><text class="ts" x="565" y="236" text-anchor="middle" id="lk">PLL unlocked</text></g>
+<line id="w0" class="w" x1="200" y1="96" x2="480" y2="96"/><text class="ts" x="340" y="89" text-anchor="middle">+5 V (source powers the cable)</text>
+<line id="w1" class="w" x1="200" y1="124" x2="480" y2="124"/><text class="ts" x="340" y="117" text-anchor="middle">HPD (hot plug detect)</text>
+<line id="w2" class="w" x1="200" y1="152" x2="500" y2="152"/><text class="ts" x="340" y="145" text-anchor="middle">DDC: I2C clock + data</text>
+<g id="w3"><line class="w" x1="180" y1="208" x2="500" y2="208"/><line class="w" x1="180" y1="220" x2="500" y2="220"/><line class="w" x1="180" y1="232" x2="500" y2="232"/><line class="w" x1="180" y1="244" x2="500" y2="244"/></g>
+<text class="ts" x="340" y="196" text-anchor="middle" id="lanes">3 TMDS data lanes + 1 clock lane</text>
+</svg>
+<div style="margin-top:8px"><div style="font-size:15px;font-weight:500" id="st"></div><div style="font-size:14px;color:var(--text-secondary);margin-top:4px;min-height:44px" id="sd"></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:10px"><button onclick="go(-1)">&larr;</button><span id="dots"></span><button onclick="go(1)">&rarr;</button></div>
+<script>
+const S=[
+['1. Cable in: source drives +5 V','The source puts +5 V on the cable. This powers the EDID memory in the sink even if the TV is switched off.',['w0'],[]],
+['2. Sink ready: HPD goes high','The sink feeds the 5 V back on the HPD pin when its EDID can be read. The source sees HPD rise as an interrupt: "a display is connected".',['w1'],['w1']],
+['3. Source reads the EDID over DDC','DDC is an I2C bus inside the cable. The source reads the EDID from address 0x50: the display\'s name, its preferred mode, all modes it supports, max data rate, HDMI 2.x features.',['w2'],['w2']],
+['4. Fast modes only: set up the sink via SCDC','Still over DDC, at I2C address 0x54. Above 340 MHz (for example 4K60) the source turns on scrambling and the clock ratio, or starts FRL link training (HDMI 2.1).',['w2'],[]],
+['5. Link up: TMDS or FRL lanes start','TMDS: 3 data lanes carry 10-bit symbols, the 4th lane carries the clock. FRL (HDMI 2.1): all 4 pairs carry data, the clock is recovered from the data.',['w3'],[]],
+['6. Sink locks: picture appears','The sink PLL locks to the incoming stream, finds the frame timing, reads the InfoFrames (format, colour range) and audio, and shows the picture.',['w3'],[]]];
+let i=0;
+function go(d){i=(i+d+S.length)%S.length;render();}
+function setStep(k){i=k;render();}
+function render(){['w0','w1','w2'].forEach(id=>{const e=document.getElementById(id);e.classList.toggle('on',S[i][2].includes(id));e.classList.toggle('rev',S[i][3].includes(id));});
+document.querySelectorAll('#w3 line').forEach(e=>e.classList.toggle('on',S[i][2].includes('w3')));
+document.getElementById('lanes').textContent=i>=4?'TMDS: 3 data + 1 clock   |   FRL: 4 data lanes':'3 TMDS data lanes + 1 clock lane';
+document.getElementById('lk').textContent=i===5?'PLL locked':'PLL unlocked';
+document.getElementById('st').textContent=S[i][0];document.getElementById('sd').textContent=S[i][1];
+document.getElementById('dots').innerHTML=S.map((_,k)=>`<span class="pill ${k===i?'on':''}"></span>`).join('');}
+render();
+</script>
+</body>
+</html>
