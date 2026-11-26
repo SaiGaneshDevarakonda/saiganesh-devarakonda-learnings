@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AVC vs HEVC block split</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--b:rgba(0,0,0,.14);--t:#5f5e5a;--bg-neutral:#F5F4EF;--border-accent:#378ADD;--radius:8px}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--text-primary);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 6px}
+p.hint{font-size:13px;color:var(--text-secondary);margin:0 0 12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,.22);border-radius:8px;background:#fff;color:var(--text-primary);cursor:pointer}
+select{font:inherit;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.22);background:#fff}
+svg text{font-family:Inter,'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;fill:#1f1e1d}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#1f1e1d}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-teal>rect,rect.c-teal{fill:#E1F5EE;stroke:#0F6E56}.c-teal>.th{fill:#085041}.c-teal>.ts{fill:#0F6E56}
+.c-purple>rect,rect.c-purple{fill:#EEEDFE;stroke:#534AB7}.c-purple>.th{fill:#3C3489}.c-purple>.ts{fill:#534AB7}
+.c-coral>rect,rect.c-coral{fill:#FAECE7;stroke:#993C1D}.c-coral>.th{fill:#712B13}.c-coral>.ts{fill:#993C1D}
+.c-gray>rect,rect.c-gray{fill:#F1EFE8;stroke:#5F5E5A}.c-gray>.th{fill:#2C2C2A}.c-gray>.ts{fill:#5F5E5A}
+.card{background:var(--bg-neutral);border-radius:var(--radius);padding:10px 12px}
+.card .l{font-size:13px;color:var(--text-secondary)}.card .v{font-size:18px;font-weight:500}
+</style>
+</head>
+<body>
+<h1>The same picture cut into blocks: AVC vs HEVC</h1>
+<p class="hint">Switch between the plain picture, AVC's fixed 16×16 macroblocks and HEVC's 32×32 CTUs that split only where there is detail. The split rule here is a simple "how much detail" test; real encoders decide by rate-distortion optimisation, but the pattern is the same.</p>
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px;color:var(--text-secondary);margin-bottom:10px">
+<button id="b0" onclick="setMode(0)">Picture</button><button id="b1" onclick="setMode(1)">AVC 16×16</button><button id="b2" onclick="setMode(2)">HEVC CTU 32×32</button>
+<label style="display:flex;align-items:center;gap:6px">Split sensitivity <input type="range" id="t" min="3" max="30" step="1" value="10" style="width:110px"></label>
+</div>
+<div id="shot">
+<div id="cap" style="font-size:14px;font-weight:500;margin:0 0 6px"></div>
+<canvas id="cv" width="640" height="384" style="width:100%;height:auto;border-radius:8px;display:block"></canvas>
+<div id="leg" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);margin-top:8px;min-height:18px"></div>
+<div id="st" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px;min-height:62px"></div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),base=document.createElement('canvas');base.width=640;base.height=384;const b=base.getContext('2d');
+let s=7;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+function circ(x,y,rad,col){b.fillStyle=col;b.beginPath();b.arc(x,y,rad,0,7);b.fill();}
+function scene(){s=7;
+b.fillStyle='#8ECDF0';b.fillRect(0,0,640,300);
+[[300,60,26],[330,52,30],[362,62,24],[180,110,20],[205,104,24],[230,112,18]].forEach(c=>circ(c[0],c[1],c[2],'#F4F8FB'));
+b.fillStyle='#B0A08A';b.fillRect(520,30,120,270);
+for(let i=0;i<4;i++)for(let j=0;j<11;j++){b.fillStyle=r()<0.35?'#F6D36B':'#33465C';b.fillRect(532+i*27,42+j*23,15,14);}
+b.fillStyle='#6B4A2B';b.fillRect(46,140,16,160);
+for(let i=0;i<160;i++)circ(10+r()*100,10+r()*150,5+r()*6,['#2F7D32','#4CAF50','#1B5E20','#66BB6A'][i%4]);
+b.strokeStyle='#5F5E5A';b.lineWidth=1;b.beginPath();b.moveTo(300,190);b.lineTo(306,232);b.stroke();
+b.fillStyle='#E24B4A';b.beginPath();b.ellipse(300,150,30,38,0,0,7);b.fill();
+b.fillStyle='#FAC775';b.beginPath();b.ellipse(300,150,9,38,0,0,7);b.fill();
+b.fillStyle='#378ADD';b.beginPath();b.ellipse(282,150,5,34,0,0,7);b.fill();b.beginPath();b.ellipse(318,150,5,34,0,0,7);b.fill();
+b.fillStyle='#8B5A2B';b.fillRect(298,232,14,10);
+b.fillStyle='#C9B79C';b.fillRect(405,110,50,190);b.fillStyle='#8B3A2B';b.beginPath();b.moveTo(398,112);b.lineTo(430,72);b.lineTo(462,112);b.fill();
+circ(430,150,20,'#FFFFFF');b.strokeStyle='#222';b.lineWidth=1.5;b.beginPath();b.arc(430,150,20,0,7);b.stroke();
+for(let k=0;k<12;k++){const a=k*Math.PI/6;b.beginPath();b.moveTo(430+16*Math.cos(a),150+16*Math.sin(a));b.lineTo(430+19*Math.cos(a),150+19*Math.sin(a));b.stroke();}
+b.lineWidth=2;b.beginPath();b.moveTo(430,150);b.lineTo(430,136);b.moveTo(430,150);b.lineTo(441,155);b.stroke();
+b.fillStyle='#6AA84F';b.fillRect(0,300,640,84);b.strokeStyle='#4E8A3A';b.lineWidth=1;
+for(let i=0;i<220;i++){const x=r()*640,y=302+r()*80;b.beginPath();b.moveTo(x,y);b.lineTo(x+2,y-5);b.stroke();}
+b.fillStyle='#C8B08A';b.beginPath();b.moveTo(230,384);b.lineTo(290,300);b.lineTo(350,300);b.lineTo(420,384);b.fill();
+b.fillStyle='#D9C3A5';b.fillRect(0,300,130,84);b.fillStyle='#A0522D';
+for(let row=0;row<8;row++)for(let c=-1;c<7;c++)b.fillRect(c*20+(row%2?10:0)+1,301+row*10+1,18,8);
+for(let i=0;i<70;i++)circ(525+r()*112,322+r()*58,2.5+r()*2.5,['#D4537E','#F2A623','#FFFFFF','#7F77DD','#E24B4A'][i%5]);
+[[215,'#185FA5'],[262,'#D85A30'],[372,'#534AB7']].forEach(p=>{const x=p[0];b.strokeStyle='#2C2C2A';b.lineWidth=3;b.beginPath();b.moveTo(x-5,330);b.lineTo(x-7,352);b.moveTo(x+5,330);b.lineTo(x+7,352);b.stroke();
+b.fillStyle=p[1];b.fillRect(x-10,298,20,34);circ(x,288,10,'#E0AC69');b.fillStyle='#2C2C2A';b.fillRect(x-10,277,20,6);});
+}
+scene();
+const img=b.getImageData(0,0,640,384).data;
+function sd(x,y,n){let m=0,q=0;for(let j=y;j<y+n;j++)for(let i=x;i<x+n;i++){const k=(j*640+i)*4,l=.299*img[k]+.587*img[k+1]+.114*img[k+2];m+=l;q+=l*l;}const N=n*n;m/=N;return Math.sqrt(Math.max(0,q/N-m*m));}
+let mode=2;const card=(l,v)=>`<div class="card"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+const sw=(c,t)=>`<span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border:2px solid ${c};border-radius:2px"></span>${t}</span>`;
+function sr(x,y,n,c,w){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.strokeRect(x+.5,y+.5,n-1,n-1);}
+function setMode(m){mode=m;[0,1,2].forEach(i=>document.getElementById('b'+i).style.borderColor=i===m?'var(--border-accent)':'');draw();}
+function draw(){ctx.drawImage(base,0,0);const t=+document.getElementById('t').value,st=document.getElementById('st'),lg=document.getElementById('leg'),cap=document.getElementById('cap');
+if(mode===0){cap.textContent='The picture (640×384)';st.innerHTML=card('Flat areas','Sky, walls')+card('Edges','Balloon, clock, people')+card('Fine detail','Leaves, flowers, bricks')+card('Size','640×384');lg.innerHTML='';return;}
+if(mode===1){cap.textContent='H.264 / AVC: fixed 16×16 macroblocks';for(let y=0;y<384;y+=16)for(let x=0;x<640;x+=16)sr(x,y,16,'rgba(20,20,20,0.55)',1);
+lg.innerHTML=sw('#2C2C2A','16×16 macroblock');st.innerHTML=card('Blocks','960 macroblocks')+card('Sizes','All 16×16')+card('Flat sky','Still cut into 16×16')+card('Grid','40 × 24');return;}
+cap.textContent='H.265 / HEVC: 32×32 CTUs, quadtree split where there is detail';
+let n32=0,n16=0,n8=0;
+for(let y=0;y<384;y+=32)for(let x=0;x<640;x+=32){if(sd(x,y,32)<=t){sr(x,y,32,'#EF9F27',2);n32++;continue;}
+for(let dy=0;dy<32;dy+=16)for(let dx=0;dx<32;dx+=16){const X=x+dx,Y=y+dy;if(sd(X,Y,16)<=t*1.5){sr(X,Y,16,'#1D9E75',1.5);n16++;}else{for(let e=0;e<16;e+=8)for(let f=0;f<16;f+=8)sr(X+f,Y+e,8,'#D4537E',1);n8+=4;}}}
+lg.innerHTML=sw('#EF9F27','32×32 (flat)')+sw('#1D9E75','16×16 (some detail)')+sw('#D4537E','8×8 (fine detail)');
+st.innerHTML=card('Blocks',(n32+n16+n8)+' coding units')+card('32×32',n32)+card('16×16',n16)+card('8×8',n8);}
+document.getElementById('t').addEventListener('input',draw);setMode(2);
+</script>
+</body>
+</html>

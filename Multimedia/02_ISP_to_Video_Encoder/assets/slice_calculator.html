@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slice calculator</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--b:rgba(0,0,0,.14);--t:#5f5e5a;--bg-neutral:#F5F4EF;--border-accent:#378ADD;--radius:8px}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--text-primary);background:#fff;margin:0;padding:18px;width:720px}
+h1{font-size:18px;font-weight:500;margin:0 0 6px}
+p.hint{font-size:13px;color:var(--text-secondary);margin:0 0 12px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,.22);border-radius:8px;background:#fff;color:var(--text-primary);cursor:pointer}
+select{font:inherit;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.22);background:#fff}
+svg text{font-family:Inter,'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;fill:#1f1e1d}.ts{font-size:12px;fill:#5f5e5a}.th{font-size:14px;font-weight:500;fill:#1f1e1d}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-teal>rect,rect.c-teal{fill:#E1F5EE;stroke:#0F6E56}.c-teal>.th{fill:#085041}.c-teal>.ts{fill:#0F6E56}
+.c-purple>rect,rect.c-purple{fill:#EEEDFE;stroke:#534AB7}.c-purple>.th{fill:#3C3489}.c-purple>.ts{fill:#534AB7}
+.c-coral>rect,rect.c-coral{fill:#FAECE7;stroke:#993C1D}.c-coral>.th{fill:#712B13}.c-coral>.ts{fill:#993C1D}
+.c-gray>rect,rect.c-gray{fill:#F1EFE8;stroke:#5F5E5A}.c-gray>.th{fill:#2C2C2A}.c-gray>.ts{fill:#5F5E5A}
+.card{background:var(--bg-neutral);border-radius:var(--radius);padding:10px 12px}
+.card .l{font-size:13px;color:var(--text-secondary)}.card .v{font-size:18px;font-weight:500}
+</style>
+</head>
+<body>
+<h1>Slice calculator</h1>
+<p class="hint">A slice is a band of whole block rows. Pick a resolution, codec, frame rate and slice count.</p>
+<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:13px;color:var(--text-secondary);margin-bottom:8px">
+<label>Resolution <select id="res"><option value="128x64">128×64</option><option value="1920x1080" selected>1920×1080</option><option value="3840x2160">3840×2160</option></select></label>
+<label>Codec <select id="cod"><option value="16">H.264 (16×16 MB)</option><option value="32" selected>H.265 (32×32 CTU)</option></select></label>
+<label>FPS <select id="fps"><option>30</option><option selected>60</option></select></label>
+<label style="display:flex;align-items:center;gap:6px">Slices <input type="range" id="ns" min="1" max="16" step="1" value="8" style="width:110px"><span id="nsv">8</span></label>
+</div>
+<div id="shot">
+<div id="cap" style="font-size:14px;font-weight:500;margin:4px 0"></div>
+<svg width="100%" viewBox="0 0 680 280" role="img"><title>Frame split into slices</title><g id="g"></g></svg>
+<div id="m" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px"></div>
+<p id="note" style="font-size:13px;color:var(--text-secondary);margin:10px 0 0"></p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function card(l,v){return `<div class="card"><div class="l">${l}</div><div class="v">${v}</div></div>`;}
+function rng(a,b,u){return a===b?a+u:a+'–'+b+u;}
+function sz(b){return b<10240?b.toLocaleString('en-US')+' B':Math.round(b/1024).toLocaleString('en-US')+' KB';}
+function draw(){
+ const [W,H]=$('res').value.split('x').map(Number),B=+$('cod').value,fps=+$('fps').value;
+ const cols=Math.ceil(W/B),R=Math.ceil(H/B),Wc=cols*B,Hc=R*B;
+ let n=+$('ns').value;$('nsv').textContent=n;const cl=n>R;n=Math.min(n,R);
+ $('cap').textContent=W+'×'+H+', '+(B===16?'H.264 (AVC)':'H.265 (HEVC)')+', '+n+' slice'+(n>1?'s':'')+', '+fps+' fps';
+ const base=Math.floor(R/n),ex=R%n,sc=Math.min(440/Wc,240/Hc),w=Wc*sc,h=Hc*sc,x0=40,y0=20,cell=B*sc;
+ let s='',r0=0;
+ for(let i=0;i<n;i++){const rows=base+(i<ex?1:0),y=y0+r0*cell,hh=rows*cell;
+  s+=`<g class="${i%2?'c-purple':'c-teal'}"><rect x="${x0}" y="${y}" width="${w}" height="${hh}" stroke-width="0.5"/></g>`;
+  if(hh>=14)s+=`<text class="ts" x="${x0+w+12}" y="${y+hh/2}" dominant-baseline="central">S${i}: ${rows} row${rows>1?"s":""}, ${rows*B} lines</text>`;
+  r0+=rows;}
+ if(cell>=10){for(let c=1;c<cols;c++)s+=`<line x1="${x0+c*cell}" y1="${y0}" x2="${x0+c*cell}" y2="${y0+h}" stroke="#5f5e5a" stroke-width="0.5" opacity="0.35"/>`;
+  for(let r=1;r<R;r++)s+=`<line x1="${x0}" y1="${y0+r*cell}" x2="${x0+w}" y2="${y0+r*cell}" stroke="#5f5e5a" stroke-width="0.5" opacity="0.35"/>`;}
+ if(Hc>H)s+=`<rect x="${x0}" y="${y0+H*sc}" width="${w}" height="${Math.max(1.5,(Hc-H)*sc)}" fill="#E24B4A" opacity="0.6"/>`;
+ s+=`<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="none" stroke="#5f5e5a" stroke-width="1"/>`;
+ $('g').innerHTML=s;
+ const lo=base*B,hi=(base+(ex?1:0))*B,ft=1000/fps;
+ $('m').innerHTML=card('Coded size',Wc+'×'+Hc)+card('Block grid',cols+' × '+R+(B===16?' MBs':' CTUs'))+card('Slices used',n)+card('Lines per slice',rng(lo,hi,''))+card('Bytes per slice (NV12)',lo===hi?sz(Wc*lo*1.5):sz(Wc*lo*1.5)+'–'+sz(Wc*hi*1.5))+card('Time per slice',rng((lo/Hc*ft).toFixed(2),(hi/Hc*ft).toFixed(2),' ms'));
+ let t=[];if(cl)t.push('Only '+R+' block rows, so at most '+R+' slices.');
+ if(Hc>H)t.push('Height padded '+H+' → '+Hc+' (red); the decoder crops the extra '+(Hc-H)+' lines.');
+ $('note').textContent=t.join(' ');
+}
+function setCfg(res,cod,ns,fps){$('res').value=res;$('cod').value=cod;$('ns').value=ns;if(fps)$('fps').value=fps;draw();}
+['res','cod','fps','ns'].forEach(i=>$(i).addEventListener('input',draw));draw();
+</script>
+</body>
+</html>

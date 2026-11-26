@@ -94,6 +94,40 @@ Zoomed far in, the raw data really does look like a mosaic of single-colour tile
 
 What reaches the ISP is **not a picture**. It is a long stream of numbers, one per photodiode. Each number means "this much red", "this much green" or "this much blue", depending on that photodiode's filter.
 
+#### Inside the readout: from charge to a number
+
+![From photodiode to digital code](assets/17_pixel_readout_chain.svg)
+
+Each pixel is a photodiode plus four small transistors, so it is called a **4T pixel**:
+
+| Part | Job |
+|---|---|
+| **TX** (transfer gate) | At readout time, moves the collected electrons out of the photodiode |
+| **FD** (floating diffusion) | A tiny capacitor that receives the charge. Charge on a capacitor becomes a voltage, so this is where charge turns into voltage |
+| **RST** (reset) | Empties the FD before each readout |
+| **SF** (source follower) | A small amplifier that copies the FD voltage onto the long column wire without draining it |
+| **SEL** (row select) | Connects this pixel to the column wire only when its row is being read |
+
+Rows are read one after another, top to bottom. That is why most phone sensors are called **rolling shutter**: the top row is captured slightly earlier than the bottom row.
+
+**CDS (correlated double sampling).** Every pixel has its own small offset and noise. So the column circuit measures each pixel twice: once right after reset (the "empty" level) and once after the charge has been moved in (the "signal" level). It keeps only the difference. The pixel's own offset appears in both measurements and cancels out.
+
+**The single-slope (ramp) ADC.** Every column has its own simple ADC, so a whole row is converted at once:
+
+1. A ramp voltage starts rising, and a counter starts counting at the same moment.
+2. A comparator watches the ramp and the pixel voltage.
+3. The moment the ramp crosses the pixel voltage, the comparator flips and the counter stops.
+4. The number in the counter **is** the digital value of that pixel.
+
+![Ramp ADC converting three different light levels](assets/adc_readout.gif)
+
+> Interactive version: download [`assets/pixel_adc.html`](assets/pixel_adc.html) and open it in a browser. Change the light, exposure and colour filter, then press Read out.
+
+Two effects show up directly in the numbers:
+
+- **Black level.** Even with no light, the code is not 0. The sensor adds a small offset (64 in the animation) so noise never goes below zero. This is exactly what black level correction removes in [section 5](#5-the-isp-stages-one-by-one).
+- **Saturation.** When the bucket is full, more light adds nothing and the code sticks at the maximum (4095 for RAW12). Detail in that bright area is lost for good, which is why auto exposure tries to keep highlights below this point.
+
 #### RAW8, RAW10, RAW12
 The number after RAW is how many bits the ADC uses for each pixel. Raw data from a colour sensor is Bayer data, so "RAW10" and "Bayer 10-bit" mean the same thing.
 
@@ -365,6 +399,73 @@ These happen on every frame. At 60 frames per second there are 60 of each per se
 
 Error interrupts report problems: the MIPI errors from section 4, a frame with the wrong number of lines or pixels, or an overflow when data arrives faster than the next block can take it.
 
+#### The ISP's two doors: IBA and OBA
+
+Many SoC ISPs have a dedicated block at each end of the pipeline. In AMD's Versal AI Edge Gen 2 ISP (product guide PG432) they are called the **IBA** (input buffer adapter) and the **OBA** (output buffer adapter).
+
+![ISP inputs and outputs](assets/18_isp_inputs_outputs.svg)
+
+| Door | What passes through it |
+|---|---|
+| **IBA** | The RAW stream coming in: RAW8, 10, 12 or 16, at 1, 2 or 4 pixels per clock. An ISP can have several IBAs (one per camera stream) feeding the same ISP core |
+| **OBA** | The finished picture going out: a primary and a secondary output, each with its own format and size |
+
+**Inside the IBA.** These are the typical jobs of an input adapter; the exact register and bit names are in the ISP's own register specification.
+
+![Inside the IBA and its interrupts during one frame](assets/19_iba_inside_and_interrupts.svg)
+
+| Job | Why it is needed |
+|---|---|
+| Clock crossing | The MIPI receiver and the ISP core run on different clocks. A small async FIFO hands pixels safely from one clock to the other |
+| Format and pixels-per-clock | Unpacks RAW10 or RAW12 into whole pixel values and sets how many pixels move on each clock |
+| Size and sync check | Counts pixels per line and lines per frame against the programmed width and height, and produces clean frame start and frame end signals for the rest of the ISP |
+
+**What the IBA and OBA interrupts are used for**
+
+| Interrupt | Meaning | What it is used for |
+|---|---|---|
+| Frame start (SOF) | A new frame is entering | The safe moment to update the ISP's **shadow registers**: new 3A, white balance and colour settings take effect for a whole frame, never in the middle of one. Also used to timestamp the frame |
+| Line N (if present) | N lines have arrived | Slice-level sync in low-latency mode (topic 02) |
+| Frame end (EOF) / frame done | The whole frame is in, or out | Frame counting, measuring fps, handing the finished buffer to the next block |
+| Input overflow (IBA) | Pixels arrived faster than the core took them | Core clock too low for the pixel rate, or the core was stalled by back-pressure from the output side |
+| Size mismatch | A short or long line, or a short or long frame | Sensor and ISP programmed for different resolutions, or MIPI packets were lost |
+| Missing SOF or EOF | Frame sync was lost | The sensor stopped streaming or the link broke in the middle of a frame |
+| Output overflow (OBA) | The next block or the memory writes could not keep up | Downstream back-pressure, or not enough DDR bandwidth |
+| Parity error | A bit flipped in one of the ISP's internal memories | Functional safety: the error is reported to the system's error manager (see section 12) |
+
+PG432 sizes the minimum ISP core clock as the sum of width × height × frame rate × 1.2 over all streams on that core. The extra 20% is headroom, so the core always drains the input FIFO faster than the sensor fills it.
+
+**Debug order for a bad or missing frame.** Follow the data:
+
+1. **No frame start at all:** the problem is before the ISP (sensor not streaming, MIPI receiver, lanes).
+2. **Frame start, then a size error:** the sensor and the IBA disagree on resolution, or packets are being lost.
+3. **Overflow:** check the core clock against the pixel rate, then check what is blocking the output.
+4. **IBA is clean but the picture is wrong:** move to the OBA, then to whatever reads its output.
+
+#### Two outputs: main path and self path
+
+Older ISP designs and their Linux drivers (for example the Rockchip ISP driver, with its `mainpath` and `selfpath` video nodes) call the two outputs the **main path** and the **self path**. PG432 calls them the **primary** and **secondary** output. Same idea:
+
+| | Main path (primary) | Self path (secondary) |
+|---|---|---|
+| Resolution | Full, best quality | Usually scaled down |
+| Typical formats | YUV 4:2:0 or 4:2:2, sometimes RAW | YUV or RGB, often with flip and rotate |
+| Typical user | Video encoder, recording, still capture | Preview on a display, or an AI or analytics engine |
+
+Both come from the same processed picture, so one camera can feed a recording and a live preview at the same time.
+
+#### Where the output goes: memory or live
+
+Each output either goes into memory or streams straight on. PG432 names the ISP's input/output modes **LILO** and **LIMO** (and **MIMO** for memory input). The letters read as Live In / Memory In, Live Out / Memory Out:
+
+| Mode | Input | Output | What it means |
+|---|---|---|---|
+| **LILO** | Live from the sensor | Live stream | No frame stored anywhere. Lowest delay, but every block downstream must keep up in real time |
+| **LIMO** | Live from the sensor | Memory (DDR) | Frames are written to DDR. The next block (for example the video encoder) reads them from there |
+| **MIMO** | From memory | Memory | A stored frame is processed, for example for testing or re-processing |
+
+What happens after the OBA (frame buffers, the encoder, low-latency mode and the Sync IP) is covered in [topic 02](../02_ISP_to_Video_Encoder/README.md).
+
 ---
 
 ### 11. Soft ISP, and hard versus soft
@@ -415,6 +516,7 @@ It is the same recipe. In a hard ISP a dedicated machine cooks it. In a soft ISP
 | Clock, reset, power | Reset in the middle of a frame, clock gating, power-down and resume |
 | Performance | Frame rate, latency, memory bandwidth at the highest resolution |
 | Stress | Long runs, several streams together, switching resolution on the fly |
+| Functional safety | The ISP's internal memories (line buffers, lookup tables) and settings are protected by parity or ECC. Inject a bit flip, then check that the error is detected, that it reaches the error manager, and that the planned safety reaction (stop or reset the stream) happens |
 
 ---
 
@@ -454,6 +556,13 @@ It is the same recipe. In a hard ISP a dedicated machine cooks it. In a soft ISP
 | 3A | Auto exposure, auto white balance, auto focus |
 | Plane | One separate block of memory holding one kind of sample |
 | SoC | System on chip: the main chip that contains the CPU, ISP and other blocks |
+| 4T pixel | A photodiode with four transistors: transfer, reset, source follower and row select |
+| CDS | Correlated double sampling: read each pixel at reset and after charge transfer, keep the difference |
+| Single-slope ADC | A ramp plus a counter; the count when the ramp crosses the pixel voltage is the pixel value |
+| IBA / OBA | Input and output buffer adapters: the ISP's input and output doors |
+| Main path / self path | The ISP's two outputs, also called primary and secondary |
+| Shadow registers | A second copy of the settings that the hardware switches to only at frame start |
+| LILO / LIMO / MIMO | ISP modes: live or memory input, live or memory output |
 
 #### Further reading
 
@@ -462,6 +571,8 @@ It is the same recipe. In a hard ISP a dedicated machine cooks it. In a soft ISP
 - [A peek inside your camera: the ISP pipeline (eInfochips)](https://www.einfochips.com/blog/a-peek-inside-your-camera-i-image-signal-processing-isp-pipeline/)
 - [YUV pixel formats (VideoLAN wiki)](https://wiki.videolan.org/YUV)
 - [Planar and semi-planar YUV formats (Linux kernel documentation)](https://docs.kernel.org/6.0/userspace-api/media/v4l/pixfmt-yuv-planar.html)
+- [Versal AI Edge Series Gen 2 ISP product guide, PG432 (AMD)](https://docs.amd.com/r/en-US/pg432-versal-ai-edge-series-gen-2-isp/Inputs-Tab)
+- [ISP tiles in the Versal SoC design guide, UG1273 (AMD)](https://docs.amd.com/r/2025.1-English/ug1273-versal-acap-design/ISP)
 
 ---
 
